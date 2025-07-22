@@ -1,0 +1,85 @@
+
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LSTM
+
+#  Download historical data for a stock 
+df = yf.download('TCS.NS', start='2013-01-01', end='2023-12-31')
+
+#  Use only 'Close' prices
+data = df.filter(['Close'])
+
+# Convert to numpy array
+dataset = data.values
+
+#  Feature Scaling: Normalize data between 0 and 1
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled_data = scaler.fit_transform(dataset)
+
+#  Prepare training data
+training_data_len = int(np.ceil(0.8 * len(dataset)))
+
+train_data = scaled_data[0:int(training_data_len), :]
+
+X_train = []
+y_train = []
+
+for i in range(60, len(train_data)):
+    X_train.append(train_data[i-60:i, 0])
+    y_train.append(train_data[i, 0])
+
+# Convert to numpy arrays
+X_train, y_train = np.array(X_train), np.array(y_train)
+
+# Reshaping the LSTM
+X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+
+# 7. Build the LSTM model
+model = Sequential()
+model.add(LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+model.add(LSTM(50, return_sequences=False))
+model.add(Dense(25))
+model.add(Dense(1))
+
+# 8. Compile and train
+model.compile(optimizer='adam', loss='mean_squared_error')
+model.fit(X_train, y_train, batch_size=32, epochs=10)
+
+# 9. Create test data
+test_data = scaled_data[training_data_len - 60:, :]
+X_test = []
+y_test = dataset[training_data_len:, :]
+
+for i in range(60, len(test_data)):
+    X_test.append(test_data[i-60:i, 0])
+
+X_test = np.array(X_test)
+
+# Reshape
+X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+
+# 10. Predict
+predictions = model.predict(X_test)
+predictions = scaler.inverse_transform(predictions)
+
+# 11. Visualize predictions vs actual prices
+train = data[:training_data_len]
+valid = data[training_data_len:]
+valid['Predictions'] = predictions
+
+plt.figure(figsize=(16,8))
+plt.title('Model Prediction - LSTM')
+plt.xlabel('Date')
+plt.ylabel('Close Price (INR)')
+plt.plot(train['Close'])
+plt.plot(valid[['Close', 'Predictions']])
+plt.legend(['Train', 'Actual', 'Predicted'])
+plt.show()
+
+# 12. Print RMSE
+rmse = np.sqrt(np.mean(((predictions - y_test)**2)))
+print("Root Mean Squared Error:", rmse)
