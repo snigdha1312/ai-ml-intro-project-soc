@@ -1,0 +1,115 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+
+# Load the datasets
+try:
+    df_train = pd.read_csv("train.csv")
+    df_test = pd.read_csv("test.csv")
+    print("Datasets loaded successfully.")
+except FileNotFoundError:
+    print("Error: Make sure 'train.csv' and 'test.csv' are in the same directory.")
+    exit()
+
+# Display the first few rows of the training data
+print("\nFirst 5 rows of the training data:")
+print(df_train.head())
+
+# Display basic information about the training data
+print("\nInfo about the training data:")
+df_train.info()
+
+# Display descriptive statistics of the training data
+print("\nDescriptive statistics of the training data:")
+print(df_train.describe())
+
+# Define features (X) and target (y)
+# Based on the linear_regression.ipynb, 'lstat' and 'rm' were used as features
+# and 'medv' as the target. Let's start with 'lstat' as a single feature for simplicity,
+# and then expand to multiple features as shown in the notebook.
+
+# --- Model 1: Single feature 'lstat' ---
+X_lstat = df_train[['lstat']]
+y = df_train['medv']
+
+# Split the training data to evaluate the model
+X_train_lstat, X_val_lstat, y_train, y_val = train_test_split(X_lstat, y, test_size=0.2, random_state=42)
+
+# Initialize and train the Linear Regression model
+model_lstat = LinearRegression()
+model_lstat.fit(X_train_lstat, y_train)
+
+# Make predictions on the validation set
+y_pred_lstat = model_lstat.predict(X_val_lstat)
+
+# Evaluate the model
+mse_lstat = mean_squared_error(y_val, y_pred_lstat)
+r2_lstat = r2_score(y_val, y_pred_lstat)
+
+print(f"\n--- Model 1: Using 'lstat' as feature ---")
+print(f"Coefficients: {model_lstat.coef_}")
+print(f"Intercept: {model_lstat.intercept_}")
+print(f"Mean Squared Error (MSE): {mse_lstat:.2f}")
+print(f"R-squared (R2): {r2_lstat:.2f}")
+
+# Plotting the linear regression line for 'lstat'
+plt.figure(figsize=(10, 6))
+plt.scatter(X_val_lstat, y_val, color='blue', label='Actual Prices')
+plt.plot(X_val_lstat, y_pred_lstat, color='red', label='Predicted Line')
+plt.title('Linear Regression Line (lstat vs medv)')
+plt.xlabel('lstat (Percentage of lower status population)')
+plt.ylabel('medv (Median value of owner-occupied homes in $1000s)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# --- Model 2: Multiple features 'lstat' and 'rm' ---
+# 'rm' is the average number of rooms per dwelling
+X_lstat_rm = df_train[['lstat', 'rm']]
+y = df_train['medv']
+
+# Split the training data to evaluate the model
+X_train_lstat_rm, X_val_lstat_rm, y_train, y_val = train_test_split(X_lstat_rm, y, test_size=0.2, random_state=42)
+
+# Initialize and train the Linear Regression model
+model_lstat_rm = LinearRegression()
+model_lstat_rm.fit(X_train_lstat_rm, y_train)
+
+# Make predictions on the validation set
+y_pred_lstat_rm = model_lstat_rm.predict(X_val_lstat_rm)
+
+# Evaluate the model
+mse_lstat_rm = mean_squared_error(y_val, y_pred_lstat_rm)
+r2_lstat_rm = r2_score(y_val, y_pred_lstat_rm)
+
+print(f"\n--- Model 2: Using 'lstat' and 'rm' as features ---")
+print(f"Coefficients: {model_lstat_rm.coef_}") # Coefficients for 'lstat' and 'rm'
+print(f"Intercept: {model_lstat_rm.intercept_}")
+print(f"Mean Squared Error (MSE): {mse_lstat_rm:.2f}")
+print(f"R-squared (R2): {r2_lstat_rm:.2f}")
+
+# --- Making predictions on the test.csv data ---
+# Ensure the test data has the same features as the trained model
+# Using Model 2 (lstat, rm) as it generally performs better with more relevant features
+
+# Check if 'lstat' and 'rm' columns exist in df_test
+if 'lstat' in df_test.columns and 'rm' in df_test.columns:
+    X_test_final = df_test[['lstat', 'rm']]
+    test_predictions = model_lstat_rm.predict(X_test_final)
+
+    # Add predictions to the test DataFrame
+    df_test['predicted_medv'] = test_predictions
+
+    print("\nPredictions on test.csv data (first 5 rows):")
+    print(df_test[['ID', 'lstat', 'rm', 'predicted_medv']].head())
+
+    # You can save the predictions to a new CSV file
+    # df_test[['ID', 'predicted_medv']].to_csv('test_predictions.csv', index=False)
+    # print("\nPredictions saved to 'test_predictions.csv'")
+
+else:
+    print("\nError: 'lstat' or 'rm' columns not found in 'test.csv'. Cannot make predictions.")
+
